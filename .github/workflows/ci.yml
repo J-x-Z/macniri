@@ -298,7 +298,7 @@ jobs:
         continue-on-error: true
 
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v3
+        uses: DeterminateSystems/nix-installer-action@v21
         continue-on-error: true
 
       - run: nix flake check
