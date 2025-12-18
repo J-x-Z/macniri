@@ -38,12 +38,18 @@ make `macniri` a viable tiling window manager replacement for macOS users who wa
 1. Install Rust: `rustup-init`
 2. Install LLVM (for lld linker): `brew install llvm`
 
-**Build Command:**
+**Quick Start:**
+We provide a helper script to set up the environment and run the compositor.
+
 ```bash
-# You MUST set linker arguments to find the Homebrew lld linker
+chmod +x run_macniri.sh
+./run_macniri.sh
+```
+
+**Alternative (Manual Build):**
+```bash
 export RUSTFLAGS="-L/opt/homebrew/lib -C link-arg=-fuse-ld=/opt/homebrew/bin/ld64.lld"
 export XDG_RUNTIME_DIR=/tmp
-
 cargo run --release -c ./debug_config.kdl
 ```
 
