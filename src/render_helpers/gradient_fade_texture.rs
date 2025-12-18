@@ -6,6 +6,7 @@ use smithay::backend::renderer::utils::{CommitCounter, DamageSet, OpaqueRegions}
 use smithay::utils::{Buffer, Physical, Rectangle, Scale, Transform};
 
 use super::texture::TextureRenderElement;
+#[cfg(target_os = "linux")]
 use crate::backend::tty::{TtyFrame, TtyRenderer, TtyRendererError};
 use crate::render_helpers::renderer::AsGlesFrame as _;
 use crate::render_helpers::shaders::Shaders;
@@ -111,6 +112,7 @@ impl RenderElement<GlesRenderer> for GradientFadeTextureRenderElement {
     }
 }
 
+#[cfg(target_os = "linux")]
 impl<'render> RenderElement<TtyRenderer<'render>> for GradientFadeTextureRenderElement {
     fn draw(
         &self,

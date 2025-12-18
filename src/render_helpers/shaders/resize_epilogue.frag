@@ -1,4 +1,6 @@
 
+layout(location = 0) out vec4 fragColor;
+
 void main() {
     vec3 coords_curr_geo = niri_input_to_curr_geo * vec3(niri_v_coords, 1.0);
     vec3 size_curr_geo = vec3(niri_curr_geo_size, 1.0);
@@ -23,5 +25,5 @@ void main() {
         color = vec4(0.0, 0.2, 0.0, 0.2) + color * 0.8;
 #endif
 
-    gl_FragColor = color;
+    fragColor = color;
 }

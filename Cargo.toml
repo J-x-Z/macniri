@@ -2,7 +2,6 @@
 members = [
     "niri-config",
     "niri-ipc",
-    "niri-visual-tests",
 ]
 
 [workspace.package]
@@ -29,15 +28,11 @@ tracing-subscriber = { version = "=0.3.19", features = ["env-filter"] }
 tracy-client = { version = "0.18.3", default-features = false }
 
 [workspace.dependencies.smithay]
-# version = "0.4.1"
-git = "https://github.com/Smithay/smithay.git"
-# path = "../smithay"
+path = "../cocoa-way/vendor/smithay"
 default-features = false
 
-[workspace.dependencies.smithay-drm-extras]
-# version = "0.1.0"
-git = "https://github.com/Smithay/smithay.git"
-# path = "../smithay/smithay-drm-extras"
+# [workspace.dependencies.smithay-drm-extras]
+# git = "https://github.com/Smithay/smithay.git"
 
 [package]
 name = "niri"
@@ -54,7 +49,7 @@ keywords = ["wayland", "compositor", "tiling", "smithay", "wm"]
 
 [dependencies]
 accesskit = { version = "0.21.0", optional = true }
-accesskit_unix = { version = "0.17.0", optional = true }
+# accesskit_unix = { version = "0.17.0", optional = true }
 anyhow.workspace = true
 arrayvec = "0.7.6"
 async-channel = "2.5.0"
@@ -67,29 +62,30 @@ clap = { workspace = true, features = ["string"] }
 clap_complete = "4.5.58"
 clap_complete_nushell = "4.5.8"
 directories = "6.0.0"
-drm-ffi = "0.9.0"
+# drm-ffi = "0.9.0"
 fastrand = "2.3.0"
 futures-util = { version = "0.3.31", default-features = false, features = ["std", "io"] }
 git-version = "0.3.9"
 glam = "0.30.8"
-input = { version = "0.9.1", features = ["libinput_1_21"] }
+# input = { version = "0.9.1", features = ["libinput_1_21"] }
 keyframe = { version = "1.1.1", default-features = false }
 libc = "0.2.176"
-libdisplay-info = "0.3.0"
+# libdisplay-info = "0.3.0"
 log = { version = "0.4.28", features = ["max_level_trace", "release_max_level_debug"] }
 niri-config = { version = "25.11.0", path = "niri-config" }
 niri-ipc = { version = "25.11.0", path = "niri-ipc", features = ["clap"] }
 ordered-float = "5.1.0"
 pango = { version = "0.20.12", features = ["v1_44"] }
 pangocairo = "0.20.10"
-pipewire = { version = "0.9.2", optional = true, features = ["v0_3_33"] }
+
+# pipewire = { version = "0.9.2", optional = true, features = ["v0_3_33"] }
 png = "0.18.0"
 portable-atomic = { version = "1.11.1", default-features = false, features = ["float"] }
 profiling = "1.0.17"
 sd-notify = "0.4.5"
 serde.workspace = true
 serde_json.workspace = true
-smithay-drm-extras.workspace = true
+# smithay-drm-extras.workspace = true
 tracing-subscriber.workspace = true
 tracing.workspace = true
 tracy-client.workspace = true
@@ -98,22 +94,25 @@ wayland-backend = "0.3.11"
 wayland-scanner = "0.31.7"
 xcursor = "0.3.10"
 zbus = { version = "5.11.0", optional = true }
+glutin = "0.32"
+glutin-winit = "0.5"
+gl = "0.14"
+winit = { version = "0.30", default-features = false, features = ["rwh_06"] }
+
+# macOS CFRunLoop integration
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.10"
+core-foundation-sys = "0.8"
+objc = "0.2"
+glow = "0.13"
+raw-window-handle = "0.6"
 
 [dependencies.smithay]
 workspace = true
 features = [
-    "backend_drm",
-    "backend_egl",
-    "backend_gbm",
-    "backend_libinput",
-    "backend_session_libseat",
-    "backend_udev",
-    "backend_winit",
     "desktop",
     "renderer_gl",
     "renderer_pixman",
-    "renderer_multi",
-    "use_system_lib",
     "wayland_frontend",
 ]
 
@@ -124,17 +123,17 @@ insta.workspace = true
 proptest = "1.8.0"
 proptest-derive = { version = "0.6.0", features = ["boxed_union"] }
 rayon = "1.11.0"
-wayland-client = "0.31.11"
+wayland-client = { version = "0.31.11", default-features = false }
 xshell = "0.2.7"
 
 [features]
-default = ["dbus", "systemd", "xdp-gnome-screencast"]
+default = []
 # Enables D-Bus support (serve various freedesktop and GNOME interfaces, accessibility tree, power button handling).
-dbus = ["dep:zbus", "dep:async-io", "dep:url", "dep:accesskit", "dep:accesskit_unix"]
+dbus = ["dep:zbus", "dep:async-io", "dep:url", "dep:accesskit"]
 # Enables systemd integration (global environment, apps in transient scopes).
 systemd = ["dbus"]
 # Enables screencasting support through xdg-desktop-portal-gnome.
-xdp-gnome-screencast = ["dbus", "pipewire"]
+xdp-gnome-screencast = ["dbus"]
 # Enables the Tracy profiler instrumentation.
 profile-with-tracy = ["profiling/profile-with-tracy", "tracy-client/default"]
 # Enables the on-demand Tracy profiler instrumentation.
@@ -148,7 +147,8 @@ dinit = []
 new_without_default = "allow"
 
 [profile.release]
-debug = "line-tables-only"
+strip = true
+debug = false
 overflow-checks = true
 lto = "thin"
 

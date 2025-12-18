@@ -3,7 +3,6 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use niri_config::{Config, ModKey};
-use smithay::backend::allocator::dmabuf::Dmabuf;
 use smithay::backend::renderer::gles::GlesRenderer;
 use smithay::output::Output;
 use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
@@ -11,18 +10,17 @@ use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
 use crate::niri::Niri;
 use crate::utils::id::IdCounter;
 
-pub mod tty;
-pub use tty::Tty;
-
 pub mod winit;
 pub use winit::Winit;
+pub mod winit_input;
+
+pub mod cocoa_renderer;
 
 pub mod headless;
 pub use headless::Headless;
 
 #[allow(clippy::large_enum_variant)]
 pub enum Backend {
-    Tty(Tty),
     Winit(Winit),
     Headless(Headless),
 }
@@ -58,7 +56,6 @@ impl Backend {
     pub fn init(&mut self, niri: &mut Niri) {
         let _span = tracy_client::span!("Backend::init");
         match self {
-            Backend::Tty(tty) => tty.init(niri),
             Backend::Winit(winit) => winit.init(niri),
             Backend::Headless(headless) => headless.init(niri),
         }
@@ -66,7 +63,6 @@ impl Backend {
 
     pub fn seat_name(&self) -> String {
         match self {
-            Backend::Tty(tty) => tty.seat_name(),
             Backend::Winit(winit) => winit.seat_name(),
             Backend::Headless(headless) => headless.seat_name(),
         }
@@ -77,7 +73,6 @@ impl Backend {
         f: impl FnOnce(&mut GlesRenderer) -> T,
     ) -> Option<T> {
         match self {
-            Backend::Tty(tty) => tty.with_primary_renderer(f),
             Backend::Winit(winit) => winit.with_primary_renderer(f),
             Backend::Headless(headless) => headless.with_primary_renderer(f),
         }
@@ -90,7 +85,6 @@ impl Backend {
         target_presentation_time: Duration,
     ) -> RenderResult {
         match self {
-            Backend::Tty(tty) => tty.render(niri, output, target_presentation_time),
             Backend::Winit(winit) => winit.render(niri, output),
             Backend::Headless(headless) => headless.render(niri, output),
         }
@@ -105,53 +99,35 @@ impl Backend {
                     ModKey::Alt
                 }
             }),
-            Backend::Tty(_) | Backend::Headless(_) => config.input.mod_key.unwrap_or(ModKey::Super),
+            Backend::Headless(_) => config.input.mod_key.unwrap_or(ModKey::Super),
         }
     }
 
-    pub fn change_vt(&mut self, vt: i32) {
-        match self {
-            Backend::Tty(tty) => tty.change_vt(vt),
-            Backend::Winit(_) => (),
-            Backend::Headless(_) => (),
-        }
+    pub fn change_vt(&mut self, _vt: i32) {
     }
 
     pub fn suspend(&mut self) {
-        match self {
-            Backend::Tty(tty) => tty.suspend(),
-            Backend::Winit(_) => (),
-            Backend::Headless(_) => (),
-        }
     }
 
     pub fn toggle_debug_tint(&mut self) {
         match self {
-            Backend::Tty(tty) => tty.toggle_debug_tint(),
             Backend::Winit(winit) => winit.toggle_debug_tint(),
             Backend::Headless(_) => (),
         }
     }
 
-    pub fn import_dmabuf(&mut self, dmabuf: &Dmabuf) -> bool {
+    pub fn import_dmabuf(&mut self, _dmabuf: &smithay::backend::allocator::dmabuf::Dmabuf) -> bool {
         match self {
-            Backend::Tty(tty) => tty.import_dmabuf(dmabuf),
-            Backend::Winit(winit) => winit.import_dmabuf(dmabuf),
-            Backend::Headless(headless) => headless.import_dmabuf(dmabuf),
+            Backend::Winit(winit) => false, // winit.import_dmabuf(dmabuf),
+            Backend::Headless(headless) => false, // headless.import_dmabuf(dmabuf),
         }
     }
 
-    pub fn early_import(&mut self, surface: &WlSurface) {
-        match self {
-            Backend::Tty(tty) => tty.early_import(surface),
-            Backend::Winit(_) => (),
-            Backend::Headless(_) => (),
-        }
+    pub fn early_import(&mut self, _surface: &WlSurface) {
     }
 
     pub fn ipc_outputs(&self) -> Arc<Mutex<IpcOutputMap>> {
         match self {
-            Backend::Tty(tty) => tty.ipc_outputs(),
             Backend::Winit(winit) => winit.ipc_outputs(),
             Backend::Headless(headless) => headless.ipc_outputs(),
         }
@@ -162,60 +138,23 @@ impl Backend {
         &self,
     ) -> Option<smithay::backend::allocator::gbm::GbmDevice<smithay::backend::drm::DrmDeviceFd>>
     {
-        match self {
-            Backend::Tty(tty) => tty.primary_gbm_device(),
-            Backend::Winit(_) => None,
-            Backend::Headless(_) => None,
-        }
+        None
     }
 
-    pub fn set_monitors_active(&mut self, active: bool) {
-        match self {
-            Backend::Tty(tty) => tty.set_monitors_active(active),
-            Backend::Winit(_) => (),
-            Backend::Headless(_) => (),
-        }
+    pub fn set_monitors_active(&mut self, _active: bool) {
     }
 
     pub fn set_output_on_demand_vrr(&mut self, niri: &mut Niri, output: &Output, enable_vrr: bool) {
-        match self {
-            Backend::Tty(tty) => tty.set_output_on_demand_vrr(niri, output, enable_vrr),
-            Backend::Winit(_) => (),
-            Backend::Headless(_) => (),
-        }
     }
 
     pub fn update_ignored_nodes_config(&mut self, niri: &mut Niri) {
-        match self {
-            Backend::Tty(tty) => tty.update_ignored_nodes_config(niri),
-            Backend::Winit(_) => (),
-            Backend::Headless(_) => (),
-        }
     }
 
     pub fn on_output_config_changed(&mut self, niri: &mut Niri) {
-        match self {
-            Backend::Tty(tty) => tty.on_output_config_changed(niri),
-            Backend::Winit(_) => (),
-            Backend::Headless(_) => (),
-        }
     }
 
-    pub fn tty_checked(&mut self) -> Option<&mut Tty> {
-        if let Self::Tty(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    pub fn tty(&mut self) -> &mut Tty {
-        if let Self::Tty(v) = self {
-            v
-        } else {
-            panic!("backend is not Tty");
-        }
-    }
+    // pub fn tty_checked(&mut self) -> Option<&mut Tty> { None }
+    // pub fn tty(&mut self) -> &mut Tty { panic!("backend is not Tty"); }
 
     pub fn winit(&mut self) -> &mut Winit {
         if let Self::Winit(v) = self {

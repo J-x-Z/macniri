@@ -12,7 +12,7 @@ use smithay::backend::renderer::element::Kind;
 use smithay::backend::renderer::gles::{GlesRenderer, GlesTexture};
 use smithay::input::keyboard::xkb::keysym_get_name;
 use smithay::output::{Output, WeakOutput};
-use smithay::reexports::gbm::Format as Fourcc;
+use smithay::backend::allocator::Fourcc;
 use smithay::utils::{Scale, Transform};
 
 use crate::render_helpers::primary_gpu_texture::PrimaryGpuTextureRenderElement;

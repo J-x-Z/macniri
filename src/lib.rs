@@ -12,6 +12,8 @@ pub mod dbus;
 pub mod frame_clock;
 pub mod handlers;
 pub mod input;
+#[cfg(target_os = "macos")]
+pub mod input_shim;
 pub mod ipc;
 pub mod layer;
 pub mod layout;
@@ -23,12 +25,12 @@ pub mod ui;
 pub mod utils;
 pub mod window;
 
-#[cfg(not(feature = "xdp-gnome-screencast"))]
+#[cfg(any(not(feature = "xdp-gnome-screencast"), not(target_os = "linux")))]
 pub mod dummy_pw_utils;
-#[cfg(feature = "xdp-gnome-screencast")]
+#[cfg(all(feature = "xdp-gnome-screencast", target_os = "linux"))]
 pub mod pw_utils;
 
-#[cfg(not(feature = "xdp-gnome-screencast"))]
+#[cfg(any(not(feature = "xdp-gnome-screencast"), not(target_os = "linux")))]
 pub use dummy_pw_utils as pw_utils;
 
 #[cfg(test)]

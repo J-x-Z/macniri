@@ -10,7 +10,10 @@ use std::thread;
 use std::time::Duration;
 
 use smithay::backend::allocator::dmabuf::Dmabuf;
+#[cfg(target_os = "linux")]
 use smithay::backend::drm::DrmNode;
+#[cfg(target_os = "macos")]
+use crate::input_shim as input;
 use smithay::backend::input::{InputEvent, TabletToolDescriptor};
 use smithay::desktop::{PopupKind, PopupManager};
 use smithay::input::pointer::{CursorIcon, CursorImageStatus, PointerHandle};
@@ -22,9 +25,10 @@ use smithay::reexports::wayland_server::protocol::wl_data_source::WlDataSource;
 use smithay::reexports::wayland_server::protocol::wl_output::WlOutput;
 use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
 use smithay::reexports::wayland_server::Resource;
-use smithay::utils::{Logical, Point, Rectangle};
+use smithay::utils::{Logical, Point, Rectangle, Serial};
 use smithay::wayland::compositor::{get_parent, with_states};
 use smithay::wayland::dmabuf::{DmabufGlobal, DmabufHandler, DmabufState, ImportNotifier};
+#[cfg(target_os = "linux")]
 use smithay::wayland::drm_lease::{
     DrmLease, DrmLeaseBuilder, DrmLeaseHandler, DrmLeaseRequest, DrmLeaseState, LeaseRejected,
 };
@@ -41,9 +45,9 @@ use smithay::wayland::security_context::{
     SecurityContext, SecurityContextHandler, SecurityContextListenerSource,
 };
 use smithay::wayland::selection::data_device::{
-    set_data_device_focus, ClientDndGrabHandler, DataDeviceHandler, DataDeviceState,
-    ServerDndGrabHandler,
+    set_data_device_focus, DataDeviceHandler, DataDeviceState, WaylandDndGrabHandler,
 };
+use smithay::input::dnd::{DnDGrab, DndGrabHandler, DndTarget, GrabType, Source};
 use smithay::wayland::selection::ext_data_control::{
     DataControlHandler as ExtDataControlHandler, DataControlState as ExtDataControlState,
 };
@@ -63,7 +67,7 @@ use smithay::wayland::xdg_activation::{
 };
 use smithay::{
     delegate_cursor_shape, delegate_data_control, delegate_data_device, delegate_dmabuf,
-    delegate_drm_lease, delegate_ext_data_control, delegate_fractional_scale,
+    delegate_ext_data_control, delegate_fractional_scale,
     delegate_idle_inhibit, delegate_idle_notify, delegate_input_method_manager,
     delegate_keyboard_shortcuts_inhibit, delegate_output, delegate_pointer_constraints,
     delegate_pointer_gestures, delegate_presentation, delegate_primary_selection,
@@ -71,6 +75,9 @@ use smithay::{
     delegate_single_pixel_buffer, delegate_tablet_manager, delegate_text_input_manager,
     delegate_viewporter, delegate_virtual_keyboard_manager, delegate_xdg_activation,
 };
+
+#[cfg(target_os = "linux")]
+use smithay::delegate_drm_lease;
 
 pub use crate::handlers::xdg_shell::KdeDecorationsModeState;
 use crate::layout::workspace::WorkspaceId;
@@ -314,12 +321,14 @@ impl DataDeviceHandler for State {
     }
 }
 
-impl ClientDndGrabHandler for State {
-    fn started(
+impl WaylandDndGrabHandler for State {
+    fn dnd_requested<S: Source>(
         &mut self,
-        _source: Option<WlDataSource>,
+        source: S,
         icon: Option<WlSurface>,
-        _seat: Seat<Self>,
+        seat: Seat<Self>,
+        serial: Serial,
+        type_: GrabType,
     ) {
         self.niri.dnd_icon = icon.map(|surface| DndIcon {
             surface,
@@ -327,9 +336,49 @@ impl ClientDndGrabHandler for State {
         });
         // FIXME: more granular
         self.niri.queue_redraw_all();
-    }
 
-    fn dropped(&mut self, target: Option<WlSurface>, validated: bool, _seat: Seat<Self>) {
+        match type_ {
+            GrabType::Pointer => {
+                if let Some(start_data) = seat.get_pointer().and_then(|p| p.grab_start_data()) {
+                    let grab = DnDGrab::new_pointer(
+                        &self.niri.display_handle,
+                        start_data,
+                        source,
+                        seat.clone(),
+                    );
+                    seat.get_pointer()
+                        .unwrap()
+                        .set_grab(self, grab, serial, smithay::input::pointer::Focus::Clear);
+                }
+            }
+            GrabType::Touch => {
+                if let Some(start_data) = seat.get_touch().and_then(|t| t.grab_start_data()) {
+                    let grab = DnDGrab::new_touch(
+                        &self.niri.display_handle,
+                        start_data,
+                        source,
+                        seat.clone(),
+                    );
+                    seat.get_touch().unwrap().set_grab(self, grab, serial);
+                }
+            }
+        }
+    }
+}
+
+impl DndGrabHandler for State {
+    fn dropped(
+        &mut self,
+        target: Option<DndTarget<'_, Self>>,
+        validated: bool,
+        _seat: Seat<Self>,
+        _location: Point<f64, Logical>,
+    ) {
+        let target = target.map(|t| match t {
+            DndTarget::Pointer(p) => p.clone(),
+            DndTarget::Touch(t) => t.clone(),
+        });
+
         trace!("client dropped, target: {target:?}, validated: {validated}");
 
         // End DnD before activating a specific window below so that it takes precedence.
@@ -370,8 +419,6 @@ impl ClientDndGrabHandler for State {
         self.niri.queue_redraw_all();
     }
 }
-
-impl ServerDndGrabHandler for State {}
 
 delegate_data_device!(State);
 
@@ -656,6 +703,7 @@ impl VirtualPointerHandler for State {
 }
 delegate_virtual_pointer!(State);
 
+#[cfg(target_os = "linux")]
 impl DrmLeaseHandler for State {
     fn drm_lease_state(&mut self, node: DrmNode) -> &mut DrmLeaseState {
         self.backend
@@ -701,39 +749,26 @@ impl DrmLeaseHandler for State {
             .remove_lease(lease_id);
     }
 }
+#[cfg(target_os = "linux")]
 delegate_drm_lease!(State);
 
 delegate_viewporter!(State);
 
-impl GammaControlHandler for State {
-    fn gamma_control_manager_state(&mut self) -> &mut GammaControlManagerState {
-        &mut self.niri.gamma_control_manager_state
-    }
-
-    fn get_gamma_size(&mut self, output: &Output) -> Option<u32> {
-        match self.backend.tty().get_gamma_size(output) {
-            Ok(0) => None, // Setting gamma is not supported.
-            Ok(size) => Some(size),
-            Err(err) => {
-                warn!(
-                    "error getting gamma size for output {}: {err:?}",
-                    output.name()
-                );
-                None
-            }
-        }
-    }
-
-    fn set_gamma(&mut self, output: &Output, ramp: Option<Vec<u16>>) -> Option<()> {
-        match self.backend.tty().set_gamma(output, ramp) {
-            Ok(()) => Some(()),
-            Err(err) => {
-                warn!("error setting gamma for output {}: {err:?}", output.name());
-                None
-            }
-        }
-    }
-}
+// #[cfg(target_os = "linux")]
+// impl GammaControlHandler for State {
+//     fn gamma_control_manager_state(&mut self) -> &mut GammaControlManagerState {
+//         &mut self.niri.gamma_control_manager_state
+//     }
+//
+//     fn get_gamma_size(&mut self, output: &Output) -> Option<u32> {
+//          None
+//     }
+//
+//     fn set_gamma(&mut self, output: &Output, ramp: Option<Vec<u16>>) -> Option<()> {
+//         None
+//     }
+// }
+// #[cfg(target_os = "linux")]
 delegate_gamma_control!(State);
 
 struct UrgentOnlyMarker;

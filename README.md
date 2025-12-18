@@ -1,4 +1,4 @@
-<h1 align="center"><img alt="niri" src="https://github.com/user-attachments/assets/07d05cd0-d5dc-4a28-9a35-51bae8f119a0"></h1>
+<h1 align="center"><img alt="macniri" src="https://github.com/user-attachments/assets/07d05cd0-d5dc-4a28-9a35-51bae8f119a0"></h1>
 <p align="center">A scrollable-tiling Wayland compositor.</p>
 <p align="center">
     <a href="https://matrix.to/#/#niri:matrix.org"><img alt="Matrix" src="https://img.shields.io/badge/matrix-%23niri-blue?logo=matrix"></a>
@@ -11,6 +11,43 @@
 </p>
 
 ![niri with a few windows open](https://github.com/user-attachments/assets/535e6530-2f44-4b84-a883-1240a3eee6e9)
+
+
+
+# 🍎 macniri: Niri for macOS (Pre-Alpha)
+
+> **⚠️ WARNING: PRE-ALPHA SOFTWARE**
+> This is a **Proof of Concept** port of [Niri](https://github.com/YaLTeR/niri) to macOS.
+> It is **NOT ready for daily use**. Expect severe bugs, missing features, and crashes.
+
+## 🚧 Current Status & Call for Help
+We have successfully ported the rendering and basic window management, but major issues remain.
+**We need contributors!**
+
+### 🛑 Critical Issues (Help Wanted):
+1.  **Input Latency**: There is a noticeable ~16ms input latency due to `CFRunLoop` integration limitations. We need help optimizing the `winit` -> `calloop` event loop bridge.
+2.  **App Support**: Most Linux GUI apps do not run natively on macOS rendering. You must use `waypipe` or manually patch apps (e.g. Alacritty, Firefox) to use the Wayland backend on macOS.
+3.  **Stability**: The compositor may crash or freeze under load.
+
+### 🎯 Goal
+make `macniri` a viable tiling window manager replacement for macOS users who want the Wayland experience.
+
+## 🛠️ Building on macOS
+
+**Prerequisites:**
+1. Install Rust: `rustup-init`
+2. Install LLVM (for lld linker): `brew install llvm`
+
+**Build Command:**
+```bash
+# You MUST set linker arguments to find the Homebrew lld linker
+export RUSTFLAGS="-L/opt/homebrew/lib -C link-arg=-fuse-ld=/opt/homebrew/bin/ld64.lld"
+export XDG_RUNTIME_DIR=/tmp
+
+cargo run --release -c ./debug_config.kdl
+```
+
+---
 
 ## About
 

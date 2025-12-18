@@ -27,6 +27,7 @@ use niri::utils::{cause_panic, version, watcher, xwayland, IS_SYSTEMD_SERVICE};
 use niri_config::{Config, ConfigPath};
 use niri_ipc::socket::SOCKET_PATH_ENV;
 use portable_atomic::Ordering;
+#[cfg(target_os = "linux")]
 use sd_notify::NotifyState;
 use smithay::reexports::wayland_server::Display;
 use tracing_subscriber::EnvFilter;
@@ -230,10 +231,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if env::var_os("NIRI_DISABLE_SYSTEM_MANAGER_NOTIFY").map_or(true, |x| x != "1") {
         // Notify systemd we're ready.
-        if let Err(err) = sd_notify::notify(true, &[NotifyState::Ready]) {
-            warn!("error notifying systemd: {err:?}");
-        };
-
+        #[cfg(target_os = "linux")]
+        let _ = sd_notify::notify(
+            true,
+            &[
+                NotifyState::Ready,
+                NotifyState::MainPid(std::process::id()),
+            ],
+        );
         // Send ready notification to the NOTIFY_FD file descriptor.
         if let Err(err) = notify_fd() {
             warn!("error notifying fd: {err:?}");
@@ -261,9 +266,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Run the compositor.
-    event_loop
-        .run(None, &mut state, |state| state.refresh_and_flush_clients())
-        .unwrap();
+    #[cfg(target_os = "macos")]
+    {
+        // macOS: Use CFRunLoop integration for proper event handling
+        // This integrates calloop's fd with macOS native run loop
+        use niri::utils::macos_runloop::run_with_cfrunloop;
+        
+        if let Err(e) = run_with_cfrunloop(&mut event_loop, &mut state) {
+            tracing::error!("CFRunLoop error: {:?}", e);
+        }
+    }
+    
+    #[cfg(not(target_os = "macos"))]
+    {
+        event_loop
+            .run(None, &mut state, |state| state.refresh_and_flush_clients())
+            .unwrap();
+    }
 
     Ok(())
 }

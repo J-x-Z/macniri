@@ -7,6 +7,7 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
+
 use std::time::{Duration, Instant};
 use std::{env, mem, thread};
 
@@ -14,12 +15,20 @@ use _server_decoration::server::org_kde_kwin_server_decoration_manager::Mode as 
 use anyhow::{bail, ensure, Context};
 use calloop::futures::Scheduler;
 use niri_config::debug::PreviewRender;
+#[cfg(not(target_os = "macos"))]
+use smithay::backend::input;
+#[cfg(target_os = "macos")]
+use crate::input_shim as input;
+use smithay::wayland::relative_pointer::RelativePointerManagerState;
+use crate::protocols::foreign_toplevel;
+use crate::protocols::foreign_toplevel::ForeignToplevelManagerState;
 use niri_config::{
     Config, FloatOrInt, Key, Modifiers, OutputName, TrackLayout, WarpMouseToFocusMode,
     WorkspaceReference, Xkb,
 };
 use smithay::backend::allocator::Fourcc;
 use smithay::backend::input::Keycode;
+// use smithay::backend::winit::WinitVirtualDevice;
 use smithay::backend::renderer::damage::OutputDamageTracker;
 use smithay::backend::renderer::element::memory::MemoryRenderBufferRenderElement;
 use smithay::backend::renderer::element::surface::{
@@ -89,7 +98,6 @@ use smithay::wayland::output::OutputManagerState;
 use smithay::wayland::pointer_constraints::{with_pointer_constraint, PointerConstraintsState};
 use smithay::wayland::pointer_gestures::PointerGesturesState;
 use smithay::wayland::presentation::PresentationState;
-use smithay::wayland::relative_pointer::RelativePointerManagerState;
 use smithay::wayland::security_context::SecurityContextState;
 use smithay::wayland::selection::data_device::{set_data_device_selection, DataDeviceState};
 use smithay::wayland::selection::ext_data_control::DataControlState as ExtDataControlState;
@@ -114,8 +122,8 @@ use smithay::wayland::xdg_foreign::XdgForeignState;
 #[cfg(feature = "dbus")]
 use crate::a11y::A11y;
 use crate::animation::Clock;
-use crate::backend::tty::SurfaceDmabufFeedback;
-use crate::backend::{Backend, Headless, RenderResult, Tty, Winit};
+// use crate::backend::tty::SurfaceDmabufFeedback;
+use crate::backend::{Backend, Headless, RenderResult, Winit};
 use crate::cursor::{CursorManager, CursorTextureCache, RenderCursor, XCursor};
 #[cfg(feature = "dbus")]
 use crate::dbus::freedesktop_locale1::Locale1ToNiri;
@@ -144,8 +152,8 @@ use crate::layout::workspace::{Workspace, WorkspaceId};
 use crate::layout::{HitType, Layout, LayoutElement as _, MonitorRenderElement};
 use crate::niri_render_elements;
 use crate::protocols::ext_workspace::{self, ExtWorkspaceManagerState};
-use crate::protocols::foreign_toplevel::{self, ForeignToplevelManagerState};
-use crate::protocols::gamma_control::GammaControlManagerState;
+// use crate::protocols::foreign_toplevel::{self, ForeignToplevelManagerState}; // Duplicate
+use crate::protocols::gamma_control::{GammaControlHandler, GammaControlManagerState};
 use crate::protocols::mutter_x11_interop::MutterX11InteropManagerState;
 use crate::protocols::output_management::OutputManagementManagerState;
 use crate::protocols::screencopy::{Screencopy, ScreencopyBuffer, ScreencopyManagerState};
@@ -689,9 +697,8 @@ impl State {
             let winit = Winit::new(config.clone(), event_loop.clone())?;
             Backend::Winit(winit)
         } else {
-            let tty = Tty::new(config.clone(), event_loop.clone())
-                .context("error initializing the TTY backend")?;
-            Backend::Tty(tty)
+             // Tty backend removed for macOS port
+             panic!("TTY backend not supported on macOS. Please run inside a window.");
         };
 
         let mut niri = Niri::new(
@@ -1790,13 +1797,6 @@ impl State {
         let temp;
         let match_name = if let Some(output) = self.niri.output_by_name_match(name) {
             output.user_data().get::<OutputName>().unwrap()
-        } else if let Some(output_name) = self
-            .backend
-            .tty_checked()
-            .and_then(|tty| tty.disconnected_connector_name_by_name_match(name))
-        {
-            temp = output_name;
-            &temp
         } else {
             // Even if name is "make model serial", matching will work fine this way.
             temp = OutputName {
@@ -2543,7 +2543,7 @@ impl Niri {
         let viewporter_state = ViewporterState::new::<State>(&display_handle);
         let xdg_foreign_state = XdgForeignState::new::<State>(&display_handle);
 
-        let is_tty = matches!(backend, Backend::Tty(_));
+        let is_tty = false;
         let gamma_control_manager_state =
             GammaControlManagerState::new::<State, _>(&display_handle, move |client| {
                 is_tty && !client.get_data::<ClientState>().unwrap().restricted
@@ -2855,6 +2855,7 @@ impl Niri {
 
         let config = self.config.borrow();
         let data = Arc::new(ClientState {
+
             compositor_state: Default::default(),
             can_view_decoration_globals: config.prefer_no_csd,
             primary_selection_disabled: config.clipboard.disable_primary,
@@ -3255,7 +3256,7 @@ impl Niri {
         Some((output, pos_within_output))
     }
 
-    fn is_inside_hot_corner(&self, output: &Output, pos: Point<f64, Logical>) -> bool {
+    fn is_inside_hot_corner(&self, output: &Output, pos_within_output: Point<f64, Logical>) -> bool {
         let config = self.config.borrow();
         let hot_corners = output
             .user_data()
@@ -3274,7 +3275,7 @@ impl Niri {
         let size = geom.size.to_f64();
 
         let contains = move |corner: Point<f64, Logical>| {
-            Rectangle::new(corner, Size::new(1., 1.)).contains(pos)
+            Rectangle::new(corner, Size::new(1., 1.)).contains(pos_within_output)
         };
 
         if hot_corners.top_right && contains(Point::new(size.w - 1., 0.)) {
@@ -3920,6 +3921,7 @@ impl Niri {
                     Kind::Cursor,
                 )
             }
+
             RenderCursor::Named {
                 icon,
                 scale,
@@ -4653,6 +4655,9 @@ impl Niri {
             } else {
                 RedrawState::Idle
             };
+        } else {
+            // On successful render, we are done with this frame.
+            state.redraw_state = RedrawState::Idle;
         }
 
         // Update the lock render state on successful render, or if monitors are inactive. When
@@ -4888,10 +4893,11 @@ impl Niri {
         }
     }
 
+    #[cfg(target_os = "linux")]
     pub fn send_dmabuf_feedbacks(
         &self,
         output: &Output,
-        feedback: &SurfaceDmabufFeedback,
+        feedback: &smithay::backend::renderer::element::utils::SurfaceDmabufFeedback,
         render_element_states: &RenderElementStates,
     ) {
         let _span = tracy_client::span!("Niri::send_dmabuf_feedbacks");
@@ -6588,5 +6594,19 @@ niri_render_elements! {
         Texture = PrimaryGpuTextureRenderElement,
         // Used for the CPU-rendered panels.
         RelocatedMemoryBuffer = RelocateRenderElement<MemoryRenderBufferRenderElement<R>>,
+    }
+}
+
+impl GammaControlHandler for State {
+    fn gamma_control_manager_state(&mut self) -> &mut GammaControlManagerState {
+        &mut self.niri.gamma_control_manager_state
+    }
+
+    fn get_gamma_size(&mut self, _output: &Output) -> Option<u32> {
+        None
+    }
+
+    fn set_gamma(&mut self, _output: &Output, _ramp: Option<Vec<u16>>) -> Option<()> {
+        None
     }
 }

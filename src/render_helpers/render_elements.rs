@@ -120,6 +120,7 @@ macro_rules! niri_render_elements {
             }
         }
 
+        #[cfg(target_os = "linux")]
         impl<'render> smithay::backend::renderer::element::RenderElement<$crate::backend::tty::TtyRenderer<'render>>
             for $($name_R<$crate::backend::tty::TtyRenderer<'render>>)? $($name_no_R)?
         {

@@ -11,7 +11,7 @@ use pangocairo::pango::FontDescription;
 use smithay::backend::renderer::element::Kind;
 use smithay::backend::renderer::gles::{GlesRenderer, GlesTexture};
 use smithay::output::Output;
-use smithay::reexports::gbm::Format as Fourcc;
+use smithay::backend::allocator::Fourcc;
 use smithay::utils::{Point, Transform};
 
 use crate::animation::{Animation, Clock};

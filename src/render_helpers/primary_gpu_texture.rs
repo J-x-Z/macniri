@@ -5,6 +5,7 @@ use smithay::utils::{Buffer, Physical, Rectangle, Scale, Transform};
 
 use super::renderer::AsGlesFrame;
 use super::texture::TextureRenderElement;
+#[cfg(target_os = "linux")]
 use crate::backend::tty::{TtyFrame, TtyRenderer, TtyRendererError};
 
 /// Wrapper for a texture from the primary GPU for rendering with the primary GPU.
@@ -74,6 +75,7 @@ impl RenderElement<GlesRenderer> for PrimaryGpuTextureRenderElement {
     }
 }
 
+#[cfg(target_os = "linux")]
 impl<'render> RenderElement<TtyRenderer<'render>> for PrimaryGpuTextureRenderElement {
     fn draw(
         &self,

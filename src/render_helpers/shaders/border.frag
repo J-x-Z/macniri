@@ -1,5 +1,3 @@
-precision highp float;
-
 #if defined(DEBUG_FLAGS)
 uniform float niri_tint;
 #endif
@@ -8,7 +6,8 @@ uniform float niri_alpha;
 uniform float niri_scale;
 
 uniform vec2 niri_size;
-varying vec2 niri_v_coords;
+in vec2 niri_v_coords;
+layout(location = 0) out vec4 fragColor;
 
 uniform float colorspace;
 uniform float hue_interpolation;
@@ -256,5 +255,6 @@ void main() {
         color = vec4(0.0, 0.2, 0.0, 0.2) + color * 0.8;
 #endif
 
-    gl_FragColor = color;
+    // FORCE DEBUG: Solid Red
+    fragColor = vec4(1.0, 0.0, 0.0, 1.0);
 }

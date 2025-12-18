@@ -42,6 +42,9 @@ pub mod vblank_throttle;
 pub mod watcher;
 pub mod xwayland;
 
+#[cfg(target_os = "macos")]
+pub mod macos_runloop;
+
 pub static IS_SYSTEMD_SERVICE: AtomicBool = AtomicBool::new(false);
 
 bitflags! {

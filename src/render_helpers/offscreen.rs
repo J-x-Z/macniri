@@ -19,6 +19,7 @@ use smithay::utils::{Buffer, Logical, Physical, Point, Rectangle, Scale, Size, T
 
 use super::encompassing_geo;
 use super::renderer::AsGlesFrame as _;
+#[cfg(target_os = "linux")]
 use crate::backend::tty::{TtyFrame, TtyRenderer, TtyRendererError};
 
 /// Buffer for offscreen rendering.
@@ -330,6 +331,10 @@ impl RenderElement<GlesRenderer> for OffscreenRenderElement {
     }
 }
 
+#[cfg(target_os = "linux")]
+use crate::backend::tty::{TtyFrame, TtyRenderer, TtyRendererError};
+
+#[cfg(target_os = "linux")]
 impl<'render> RenderElement<TtyRenderer<'render>> for OffscreenRenderElement {
     fn draw(
         &self,

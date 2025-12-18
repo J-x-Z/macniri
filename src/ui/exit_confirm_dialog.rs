@@ -11,7 +11,7 @@ use pangocairo::pango::{Alignment, FontDescription};
 use smithay::backend::renderer::element::utils::RescaleRenderElement;
 use smithay::backend::renderer::element::Kind;
 use smithay::output::Output;
-use smithay::reexports::gbm::Format as Fourcc;
+use smithay::backend::allocator::Fourcc;
 use smithay::utils::{Point, Transform};
 
 use crate::animation::{Animation, Clock};

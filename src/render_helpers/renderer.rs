@@ -4,6 +4,7 @@ use smithay::backend::renderer::{
     Bind, ExportMem, ImportAll, ImportMem, Offscreen, Renderer, RendererSuper, Texture,
 };
 
+#[cfg(target_os = "linux")]
 use crate::backend::tty::{TtyFrame, TtyRenderer};
 
 /// Trait with our main renderer requirements to save on the typing.
@@ -47,6 +48,7 @@ impl AsGlesRenderer for GlesRenderer {
     }
 }
 
+#[cfg(target_os = "linux")]
 impl AsGlesRenderer for TtyRenderer<'_> {
     fn as_gles_renderer(&mut self) -> &mut GlesRenderer {
         self.as_mut()
@@ -67,6 +69,7 @@ impl<'frame, 'buffer> AsGlesFrame<'frame, 'buffer> for GlesFrame<'frame, 'buffer
     }
 }
 
+#[cfg(target_os = "linux")]
 impl<'frame, 'buffer> AsGlesFrame<'frame, 'buffer> for TtyFrame<'_, 'frame, 'buffer> {
     fn as_gles_frame(&mut self) -> &mut GlesFrame<'frame, 'buffer> {
         self.as_mut()

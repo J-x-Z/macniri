@@ -1,4 +1,7 @@
 use std::any::Any;
+
+#[cfg(target_os = "macos")]
+use crate::input_shim as input;
 use std::cmp::min;
 use std::collections::hash_map::Entry;
 use std::collections::HashSet;
@@ -11,13 +14,20 @@ use niri_config::{
 };
 use niri_ipc::LayoutSwitchTarget;
 use smithay::backend::input::{
-    AbsolutePositionEvent, Axis, AxisSource, ButtonState, Device, DeviceCapability, Event,
+    AbsolutePositionEvent, Axis, AxisSource, ButtonState, DeviceCapability, Event,
     GestureBeginEvent, GestureEndEvent, GesturePinchUpdateEvent as _, GestureSwipeUpdateEvent as _,
     InputEvent, KeyState, KeyboardKeyEvent, Keycode, MouseButton, PointerAxisEvent,
     PointerButtonEvent, PointerMotionEvent, ProximityState, Switch, SwitchState, SwitchToggleEvent,
     TabletToolButtonEvent, TabletToolEvent, TabletToolProximityEvent, TabletToolTipEvent,
     TabletToolTipState, TouchEvent,
 };
+
+#[cfg(target_os = "linux")]
+use smithay::backend::input::Device;
+#[cfg(target_os = "macos")]
+use crate::input_shim::Device as ShimDevice;
+use smithay::backend::input::Device as DeviceTrait;
+#[cfg(target_os = "linux")]
 use smithay::backend::libinput::LibinputInputBackend;
 use smithay::input::keyboard::{keysyms, FilterResult, Keysym, Layout, ModifiersState};
 use smithay::input::pointer::{
@@ -34,7 +44,9 @@ use smithay::output::Output;
 use smithay::utils::{Logical, Point, Rectangle, Transform, SERIAL_COUNTER};
 use smithay::wayland::keyboard_shortcuts_inhibit::KeyboardShortcutsInhibitor;
 use smithay::wayland::pointer_constraints::{with_pointer_constraint, PointerConstraint};
-use smithay::wayland::selection::data_device::DnDGrab;
+use smithay::input::dnd::DnDGrab;
+use smithay::reexports::wayland_server::protocol::wl_data_source::WlDataSource;
+use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
 use smithay::wayland::tablet_manager::{TabletDescriptor, TabletSeatTrait};
 use touch_overview_grab::TouchOverviewGrab;
 
@@ -191,6 +203,7 @@ impl State {
         }
     }
 
+    #[cfg(target_os = "linux")]
     pub fn process_libinput_event(&mut self, event: &mut InputEvent<LibinputInputBackend>) {
         let _span = tracy_client::span!("process_libinput_event");
 
@@ -237,7 +250,7 @@ impl State {
         }
     }
 
-    fn on_device_added(&mut self, device: impl Device) {
+    fn on_device_added(&mut self, device: impl DeviceTrait) {
         if device.has_capability(DeviceCapability::TabletTool) {
             let tablet_seat = self.niri.seat.tablet_seat();
 
@@ -249,7 +262,7 @@ impl State {
         }
     }
 
-    fn on_device_removed(&mut self, device: impl Device) {
+    fn on_device_removed(&mut self, device: impl DeviceTrait) {
         if device.has_capability(DeviceCapability::TabletTool) {
             let tablet_seat = self.niri.seat.tablet_seat();
 
@@ -322,7 +335,7 @@ impl State {
             pos.y /= target_geo.size.h as f64;
 
             let device = event.device();
-            if let Some(device) = (&device as &dyn Any).downcast_ref::<input::Device>() {
+            if let Some(device) = (&device as &dyn Any).downcast_ref::<ShimDevice>() {
                 if let Some(data) = self.niri.tablets.get(device) {
                     // This code does the same thing as mutter with "keep aspect ratio" enabled.
                     let size = transform.invert().transform_size(target_geo.size);
@@ -424,6 +437,9 @@ impl State {
                 let modified = keysym.modified_sym();
                 let raw = keysym.raw_latin_sym_or_raw_current_sym();
                 let modifiers = modifiers_from_state(*mods);
+
+                info!("XKB Res: key_code={:?}, raw_sym={:?}, mod_sym={:?}, mods={:?}", 
+                      key_code, raw, modified, modifiers);
 
                 // After updating XKB state from accessibility-grabbed keys, return right away and
                 // don't handle them.
@@ -2585,7 +2601,7 @@ impl State {
         // Inform the layout of an ongoing DnD operation.
         let mut is_dnd_grab = false;
         pointer.with_grab(|_, grab| {
-            is_dnd_grab = grab.as_any().is::<DnDGrab<Self>>();
+            is_dnd_grab = grab.as_any().is::<DnDGrab<Self, WlDataSource, WlSurface>>();
         });
         if is_dnd_grab {
             if let Some((output, pos_within_output)) = self.niri.output_under(new_pos) {
@@ -2684,7 +2700,7 @@ impl State {
         // Inform the layout of an ongoing DnD operation.
         let mut is_dnd_grab = false;
         pointer.with_grab(|_, grab| {
-            is_dnd_grab = grab.as_any().is::<DnDGrab<Self>>();
+            is_dnd_grab = grab.as_any().is::<DnDGrab<Self, WlDataSource, WlSurface>>();
         });
         if is_dnd_grab {
             if let Some((output, pos_within_output)) = self.niri.output_under(pos) {
@@ -4199,7 +4215,7 @@ impl State {
         // Inform the layout of an ongoing DnD operation.
         let mut is_dnd_grab = false;
         handle.with_grab(|_, grab| {
-            is_dnd_grab = grab.as_any().is::<DnDGrab<Self>>();
+            is_dnd_grab = grab.as_any().is::<DnDGrab<Self, WlDataSource, WlSurface>>();
         });
         if is_dnd_grab {
             if let Some((output, pos_within_output)) = self.niri.output_under(pos) {
@@ -4686,6 +4702,7 @@ pub fn apply_libinput_settings(config: &niri_config::Input, device: &mut input::
     // This is how Mutter tells apart mice.
     let mut is_trackball = false;
     let mut is_trackpoint = false;
+    #[cfg(target_os = "linux")]
     if let Some(udev_device) = unsafe { device.udev_device() } {
         if udev_device.property_value("ID_INPUT_TRACKBALL").is_some() {
             is_trackball = true;

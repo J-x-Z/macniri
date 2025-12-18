@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use miette::miette;
 use smithay::input::keyboard::XkbConfig;
+#[cfg(target_os = "linux")]
 use smithay::reexports::input;
 
 use crate::binds::Modifiers;
@@ -297,6 +298,7 @@ pub enum ClickMethod {
     ButtonAreas,
 }
 
+#[cfg(target_os = "linux")]
 impl From<ClickMethod> for input::ClickMethod {
     fn from(value: ClickMethod) -> Self {
         match value {
@@ -312,6 +314,7 @@ pub enum AccelProfile {
     Flat,
 }
 
+#[cfg(target_os = "linux")]
 impl From<AccelProfile> for input::AccelProfile {
     fn from(value: AccelProfile) -> Self {
         match value {
@@ -329,6 +332,7 @@ pub enum ScrollMethod {
     OnButtonDown,
 }
 
+#[cfg(target_os = "linux")]
 impl From<ScrollMethod> for input::ScrollMethod {
     fn from(value: ScrollMethod) -> Self {
         match value {
@@ -346,6 +350,7 @@ pub enum TapButtonMap {
     LeftMiddleRight,
 }
 
+#[cfg(target_os = "linux")]
 impl From<TapButtonMap> for input::TapButtonMap {
     fn from(value: TapButtonMap) -> Self {
         match value {

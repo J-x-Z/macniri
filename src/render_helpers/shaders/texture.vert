@@ -1,12 +1,12 @@
-#version 100
+#version 330
 
 uniform mat3 matrix;
 uniform mat3 tex_matrix;
 
-attribute vec2 vert;
-attribute vec4 vert_position;
+in vec2 vert;
+in vec4 vert_position;
 
-varying vec2 niri_v_coords;
+out vec2 niri_v_coords;
 
 mat2 scale(vec2 scale_vec){
     return mat2(
@@ -22,4 +22,3 @@ void main() {
     niri_v_coords = (tex_matrix * position).xy;
     gl_Position = vec4(matrix * position, 1.0);
 }
-

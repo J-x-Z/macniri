@@ -10,6 +10,7 @@ use smithay::utils::{Buffer, Logical, Physical, Point, Rectangle, Scale, Size, T
 use super::renderer::NiriRenderer;
 use super::shader_element::ShaderRenderElement;
 use super::shaders::{mat3_uniform, ProgramType, Shaders};
+#[cfg(target_os = "linux")]
 use crate::backend::tty::{TtyFrame, TtyRenderer, TtyRendererError};
 
 /// Renders a rounded rectangle shadow.
@@ -252,6 +253,7 @@ impl RenderElement<GlesRenderer> for ShadowRenderElement {
     }
 }
 
+#[cfg(target_os = "linux")]
 impl<'render> RenderElement<TtyRenderer<'render>> for ShadowRenderElement {
     fn draw(
         &self,

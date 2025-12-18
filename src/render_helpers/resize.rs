@@ -11,6 +11,7 @@ use smithay::utils::{Buffer, Logical, Physical, Rectangle, Scale, Size, Transfor
 use super::renderer::{AsGlesFrame, NiriRenderer};
 use super::shader_element::ShaderRenderElement;
 use super::shaders::{mat3_uniform, ProgramType, Shaders};
+#[cfg(target_os = "linux")]
 use crate::backend::tty::{TtyFrame, TtyRenderer, TtyRendererError};
 
 #[derive(Debug)]
@@ -179,6 +180,7 @@ impl RenderElement<GlesRenderer> for ResizeRenderElement {
     }
 }
 
+#[cfg(target_os = "linux")]
 impl<'render> RenderElement<TtyRenderer<'render>> for ResizeRenderElement {
     fn draw(
         &self,

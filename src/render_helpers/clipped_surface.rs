@@ -11,6 +11,7 @@ use smithay::utils::{Buffer, Logical, Physical, Point, Rectangle, Scale, Size, T
 use super::damage::ExtraDamage;
 use super::renderer::{AsGlesFrame as _, NiriRenderer};
 use super::shaders::{mat3_uniform, Shaders};
+#[cfg(target_os = "linux")]
 use crate::backend::tty::{TtyFrame, TtyRenderer, TtyRendererError};
 
 #[derive(Debug)]
@@ -237,6 +238,7 @@ impl RenderElement<GlesRenderer> for ClippedSurfaceRenderElement<GlesRenderer> {
     }
 }
 
+#[cfg(target_os = "linux")]
 impl<'render> RenderElement<TtyRenderer<'render>>
     for ClippedSurfaceRenderElement<TtyRenderer<'render>>
 {

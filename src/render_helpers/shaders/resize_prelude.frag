@@ -1,10 +1,8 @@
-precision highp float;
-
 #if defined(DEBUG_FLAGS)
 uniform float niri_tint;
 #endif
 
-varying vec2 niri_v_coords;
+in vec2 niri_v_coords;
 uniform vec2 niri_size;
 
 uniform mat3 niri_input_to_curr_geo;

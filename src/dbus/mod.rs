@@ -116,7 +116,7 @@ impl DBusServers {
             let introspect = Introspect::new(to_niri, from_niri);
             dbus.conn_introspect = try_start(introspect);
 
-            #[cfg(feature = "xdp-gnome-screencast")]
+            #[cfg(all(feature = "xdp-gnome-screencast", target_os = "linux"))]
             {
                 let (to_niri, from_screen_cast) = calloop::channel::channel();
                 niri.event_loop

@@ -15,6 +15,7 @@ use smithay::utils::{Buffer, Logical, Physical, Point, Rectangle, Scale, Size};
 use super::renderer::AsGlesFrame;
 use super::resources::Resources;
 use super::shaders::{ProgramType, Shaders};
+#[cfg(target_os = "linux")]
 use crate::backend::tty::{TtyFrame, TtyRenderer, TtyRendererError};
 
 /// Renders a shader with optional texture input, on the primary GPU.
@@ -70,9 +71,9 @@ unsafe fn compile_program(
     texture_uniforms: &[&str],
     // destruction_callback_sender: Sender<CleanupResource>,
 ) -> Result<ShaderProgram, GlesError> {
-    let shader = format!("#version 100\n{src}");
+    let shader = format!("#version 330\n{src}");
     let program = unsafe { link_program(gl, include_str!("shaders/texture.vert"), &shader)? };
-    let debug_shader = format!("#version 100\n#define DEBUG_FLAGS\n{src}");
+    let debug_shader = format!("#version 330\n#define DEBUG_FLAGS\n{src}");
     let debug_program =
         unsafe { link_program(gl, include_str!("shaders/texture.vert"), &debug_shader)? };
 
@@ -516,6 +517,7 @@ impl RenderElement<GlesRenderer> for ShaderRenderElement {
     }
 }
 
+#[cfg(target_os = "linux")]
 impl<'render> RenderElement<TtyRenderer<'render>> for ShaderRenderElement {
     fn draw(
         &self,

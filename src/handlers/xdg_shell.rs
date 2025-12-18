@@ -16,6 +16,7 @@ use smithay::reexports::wayland_protocols_misc::server_decoration::server::org_k
 use smithay::reexports::wayland_server::protocol::wl_output;
 use smithay::reexports::wayland_server::protocol::wl_seat::WlSeat;
 use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
+use smithay::reexports::wayland_server::protocol::wl_data_source::WlDataSource;
 use smithay::reexports::wayland_server::{self, Resource, WEnum};
 use smithay::utils::{Logical, Rectangle, Serial};
 use smithay::wayland::compositor::{
@@ -24,7 +25,7 @@ use smithay::wayland::compositor::{
 };
 use smithay::wayland::dmabuf::get_dmabuf;
 use smithay::wayland::input_method::InputMethodSeat;
-use smithay::wayland::selection::data_device::DnDGrab;
+use smithay::input::dnd::DnDGrab;
 use smithay::wayland::shell::kde::decoration::{KdeDecorationHandler, KdeDecorationState};
 use smithay::wayland::shell::wlr_layer::{self, Layer};
 use smithay::wayland::shell::xdg::decoration::XdgDecorationHandler;
@@ -85,7 +86,7 @@ impl XdgShellHandler for State {
                     if focus.id().same_client_as(&wl_surface.id()) {
                         // Deny move requests from DnD grabs to work around
                         // https://gitlab.gnome.org/GNOME/gtk/-/issues/7113
-                        let is_dnd_grab = grab.as_any().is::<DnDGrab<Self>>();
+                            let is_dnd_grab = grab.as_any().is::<DnDGrab<Self, WlDataSource, WlSurface>>();
 
                         if !is_dnd_grab {
                             grab_start_data =
@@ -105,7 +106,7 @@ impl XdgShellHandler for State {
                         if focus.id().same_client_as(&wl_surface.id()) {
                             // Deny move requests from DnD grabs to work around
                             // https://gitlab.gnome.org/GNOME/gtk/-/issues/7113
-                            let is_dnd_grab = grab.as_any().is::<DnDGrab<Self>>();
+                                let is_dnd_grab = grab.as_any().is::<DnDGrab<Self, WlDataSource, WlSurface>>();
 
                             if !is_dnd_grab {
                                 grab_start_data =

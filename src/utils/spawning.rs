@@ -169,7 +169,7 @@ fn spawn_sync(
     }
 }
 
-#[cfg(not(feature = "systemd"))]
+#[cfg(any(not(feature = "systemd"), not(target_os = "linux")))]
 fn do_spawn(command: &OsStr, mut process: Command) -> Option<Child> {
     unsafe {
         // Double-fork to avoid having to waitpid the child.
@@ -197,10 +197,10 @@ fn do_spawn(command: &OsStr, mut process: Command) -> Option<Child> {
     Some(child)
 }
 
-#[cfg(feature = "systemd")]
+#[cfg(all(feature = "systemd", target_os = "linux"))]
 use systemd::do_spawn;
 
-#[cfg(feature = "systemd")]
+#[cfg(all(feature = "systemd", target_os = "linux"))]
 mod systemd {
     use std::os::fd::{AsFd, AsRawFd, FromRawFd, OwnedFd};
 
