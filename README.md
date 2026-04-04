@@ -1,3 +1,6 @@
+⚠️⚠️⚠️My port was a mistake. Performing a highly flexible port on the closed macOS system is very difficult, and the program I ported still uses Wayland for display, which cannot provide a normal software ecosystem. I need to think carefully before continuing to write. My new code will not be pushed here for a while, because it is useless.
+
+
 <h1 align="center"><img alt="macniri" src="https://github.com/user-attachments/assets/07d05cd0-d5dc-4a28-9a35-51bae8f119a0"></h1>
 <p align="center">A scrollable-tiling Wayland compositor.</p>
 <p align="center">
